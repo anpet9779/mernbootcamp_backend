@@ -1,75 +1,71 @@
-const mangoose = require("mangoose");
+var mongoose = require("mongoose");
 const crypto = require("crypto");
 const uuidv1 = require("uuid/v1");
-var Schema = mangoose.Schema;
 
-var userSchema = new Schema({
+var userSchema = new mongoose.Schema({
   name: {
-    type: "string",
+    type: String,
     required: true,
-    maxLength: 32,
-    trim: true,
+    maxlength: 32,
+    trim: true
   },
   lastname: {
-    type: "string",
-    maxLength: 32,
-    trim: true,
+    type: String,
+    maxlength: 32,
+    trim: true
   },
   email: {
-    type: "string",
-    maxLength: 32,
+    type: String,
     trim: true,
     required: true,
-    unique: true,
+    unique: true
   },
-
   userinfo: {
-    type: "string",
-    trim: true,
+    type: String,
+    trim: true
   },
   encry_password: {
-    type: "string",
-    required: true,
+    type: String,
+    required: true
   },
   salt: String,
   role: {
     type: Number,
-    default: 0,
+    default: 0
   },
-
   purchases: {
     type: Array,
-    default: [],
-  },
+    default: []
+  }
 },{timestamps: true});
 
-
-/* Virtual Schema is used for password here and Getter / Setter is used to convert plain password */
 userSchema
   .virtual("password")
-  .set(function (password) {
+  .set(function(password) {
     this._password = password;
-    this.salt = uuidv1();   // uuid used for random string as SALT
+    this.salt = uuidv1();
     this.encry_password = this.securePassword(password);
   })
-  .get(function () {
+  .get(function() {
     return this._password;
   });
 
-userSchema.method = {
-  authenticate: function (plainpassword) {  // Method checking if password is encrypted
-    return this.securePassword(plainpassword) === this.encry_password;  
+userSchema.methods = {
+  autheticate: function(plainpassword) {
+    return this.securePassword(plainpassword) === this.encry_password;
   },
 
-  securePassword: function (plainpassword) {
-    if (!password) return "";
+  securePassword: function(plainpassword) {
+    if (!plainpassword) return "";
     try {
-      return createHmac("sha256", this.salt)    //  SHA256 used for encryption
+      return crypto
+        .createHmac("sha256", this.salt)
         .update(plainpassword)
         .digest("hex");
-    } catch (e) {
+    } catch (err) {
       return "";
     }
-  },
+  }
 };
-module.exports = mangoose.model("User", userSchema);
+
+module.exports = mongoose.model("User", userSchema);
