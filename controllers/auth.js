@@ -72,6 +72,7 @@ exports.signout = (req, res) => {
   });
 };
 
+
 //protected Routes
 exports.isSignedIn = expressJwt({
   secret: process.env.SECRET,
