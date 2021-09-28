@@ -9,7 +9,7 @@ exports.getProductById = (req, res, next, id) => {
     .exec((err, product) => {
       if (err) {
         return res.status(400).json({
-          error: "Product not found"
+          error: "Product not found",
         });
       }
       req.product = product;
@@ -19,13 +19,13 @@ exports.getProductById = (req, res, next, id) => {
 
 exports.createProduct = (req, res) => {
   let form = new formidable.IncomingForm();
-  form.keepExtensions = true; // Checks if original extensions need to be kept 
+  form.keepExtensions = true; // Checks if original extensions need to be kept
 
-  form.parse(req, (err, fields, file) => {  // Parses Incoming form in 3 parts err, fields and file
-      console.log(file);
+  form.parse(req, (err, fields, file) => {
+    // Parses Incoming form in 3 parts err, fields and file
     if (err) {
       return res.status(400).json({
-        error: "problem with image"
+        error: "problem with image",
       });
     }
     //destructure the fields
@@ -33,17 +33,17 @@ exports.createProduct = (req, res) => {
 
     if (!name || !description || !price || !category || !stock) {
       return res.status(400).json({
-        error: "Please include all fields"
+        error: "Please include all fields",
       });
     }
 
-    let product = new Product(fields);  // Referring to the Product Scheme in Product model 
+    let product = new Product(fields); // Referring to the Product Scheme in Product model
 
     //handle file here
     if (file.photo) {
       if (file.photo.size > 3000000) {
         return res.status(400).json({
-          error: "File size too big!"
+          error: "File size too big!",
         });
       }
       product.photo.data = fs.readFileSync(file.photo.path);
@@ -55,10 +55,131 @@ exports.createProduct = (req, res) => {
     product.save((err, product) => {
       if (err) {
         res.status(400).json({
-          error: "Saving tshirt in DB failed"
+          error: "Saving tshirt in DB failed",
         });
       }
       res.json(product);
     });
+  });
+};
+
+exports.getProduct = (req, res) => {
+  req.product.photo = undefined;
+  return res.json(req.product);
+};
+
+// Middleware for parsing images in background
+exports.photo = (req, res, next) => {
+  if (req.product.photo.data) {
+    res.set("Content-Type", req.product.photo.contentType);
+    return res.send(req.product.photo.data);
+  }
+  next();
+};
+
+exports.updateProduct = (req, res) => {
+  let form = new formidable.IncomingForm();
+  form.keepExtensions = true; // Checks if original extensions need to be kept
+
+  form.parse(req, (err, fields, file) => {
+    // Parses Incoming form in 3 parts err, fields and file
+    if (err) {
+      return res.status(400).json({
+        error: "problem with image",
+      });
+    }
+    // updation code
+    let product = req.product; // Referring to the Product from the param
+    product = _.extend(product, fields); // lowdash is used here for updating
+
+    //handle file here
+    if (file.photo) {
+      if (file.photo.size > 3000000) {
+        return res.status(400).json({
+          error: "File size too big!",
+        });
+      }
+      product.photo.data = fs.readFileSync(file.photo.path);
+      product.photo.contentType = file.photo.type;
+    }
+
+    //save to the DB
+    product.save((err, product) => {
+      if (err) {
+        res.status(400).json({
+          error: "Updation of Product in DB failed",
+        });
+      }
+      res.json(product);
+    });
+  });
+};
+
+exports.removeProduct = (req, res) => {
+  console.log(req.product);
+  let product = req.product;
+  product.remove((err, deletedProduct) => {
+    if (err) {
+      res.status(400).json({
+        error: "Couldn't delete the product",
+      });
+    }
+    res.json({
+      message: "Product deleted Successfully",
+      deletedProduct,
+    });
+  });
+};
+
+// Listing all products
+exports.getAllProducts = (req, res) => {
+  let limit = parseInt(req.query.limit) ? parseInt(req.query.limit) : 8;
+  let sortBy = req.query.sortBy ? req.query.sortBy : "_id";
+
+  Product.find()
+    .select("-photo")
+    .sort([[sortBy, "asc"]])
+    .limit(limit)
+    .exec((err, products) => {
+      if (err) {
+        res.status(400).json({
+          error: "Couldn't get all products",
+        });
+        res.json(products);
+      }
+    });
+};
+
+
+exports.getAllUniqueCategories = (req, res)=>{
+  Product.distinct("category",{}, (err, categories) => {
+    if(err){
+      res.status(400).json({
+        error: "Couldn't get all distinct categories'"
+      });
+    }
+    res.json(categories)
+  })
+}
+
+//Middleware for updating stocks / sold items
+
+exports.updateStock = (req, res, next) => {
+  let myOperations = req.body.order.products.map((prod) => {
+    return {
+      updateOne: {
+        filter: { _id: prod._id },
+        update: { $inc: { stock: -prod.count, sold: +prod.count } },
+      },
+    };
+  });
+
+  product.bulkWrite(myOperations, {}, (err, products) => {
+    if (err) {
+      res.status(400).json({
+        error: "bulk operation failed",
+      });
+    }
+    next();
   });
 };
