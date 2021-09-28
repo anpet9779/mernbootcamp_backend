@@ -54,6 +54,7 @@ exports.updateUser = (req, res) => {
   );
 };
 
+
 exports.usersPurchaseList = (req, res) => {
   Order.find({ user: req.profile._id })
     .populate("user", "_id name")
@@ -68,6 +69,7 @@ exports.usersPurchaseList = (req, res) => {
     });
 };
 
+// Middleware for update purchases
 exports.pushOrderInPurchaseList = (req, res, next) => {
   let purchases = [];
   req.body.order.products.forEach((product) => {
